@@ -1,0 +1,16 @@
+{
+  "name": "hr-bs-learn-backend",
+  "version": "1.0.0",
+  "description": "Hybrid backend for Croatian/Bosnian language learning app",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "seed": "node seed.js",
+    "seed:lessons": "node seed-lessons.js",
+    "seed:words": "node seed-words.js"
+  },
+  "dependencies": {
+    "cors": "^2.8.5",
+    "express": "^4.21.0"
+  }
+}

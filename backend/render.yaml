@@ -1,0 +1,16 @@
+services:
+  - type: web
+    name: hr-bs-learn
+    runtime: node
+    plan: free
+    buildCommand: npm install
+    startCommand: node server.js
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: DB_PATH
+        value: /data/words.db
+    disk:
+      name: hrbs-data
+      mountPath: /data
+      sizeGB: 1

@@ -1,0 +1,647 @@
+<!doctype html>
+<html lang="hr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="theme-color" content="#f7f1e6" />
+  <meta name="description" content="Učenje hrvatskog i bosanskog jezika — rječnik, karta dijalekata, lekcije." />
+  <title>Učenje HR/BS</title>
+  <link rel="manifest" href="/manifest.webmanifest" />
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <style>
+    :root { --bg:#f7f1e6; --paper:#fffbf4; --ink:#231a2b; --terra:#c0573b; --sage:#4f7a6e; --muted:#6f6270; --line:#e3d8c8; --serif:Georgia,serif; --sans:"Segoe UI",system-ui,sans-serif; }
+    * { box-sizing: border-box; }
+    body { margin:0; background:var(--bg); color:var(--ink); font-family:var(--sans); font-size:15px; line-height:1.6; }
+    .container { max-width:1080px; margin:0 auto; padding:0 20px; }
+    header { padding:16px 0; border-bottom:1px solid var(--line); background:var(--paper); position:sticky; top:0; z-index:50; }
+    h1 { font-family:var(--serif); font-size:24px; margin:0; }
+    h2 { font-family:var(--serif); font-size:20px; margin:16px 0 8px; }
+    h3 { font-family:var(--serif); font-size:16px; margin:8px 0 4px; }
+    .kicker { font-size:11px; font-weight:700; letter-spacing:.18em; text-transform:uppercase; color:var(--terra); margin:0 0 2px; }
+    .lead { color:var(--muted); max-width:60ch; }
+    .topbar { display:flex; align-items:center; justify-content:space-between; gap:12px; }
+    .lang-select { padding:6px 10px; border:1px solid var(--line); border-radius:8px; background:var(--paper); font-size:13px; }
+    .tabs { display:flex; gap:4px; margin:16px 0; border-bottom:1px solid var(--line); flex-wrap:wrap; }
+    .tabs button { padding:8px 14px; border:0; background:transparent; cursor:pointer; font-weight:700; color:var(--muted); border-bottom:2px solid transparent; font-size:14px; }
+    .tabs button.active { color:var(--ink); border-color:var(--terra); }
+    .search { display:flex; gap:8px; margin:12px 0; }
+    .search input { flex:1; padding:10px 14px; border:1px solid var(--line); border-radius:10px; font-size:15px; background:var(--paper); }
+    .search button { padding:10px 18px; background:var(--terra); color:#fff; border:0; border-radius:10px; cursor:pointer; font-weight:700; }
+    .card { background:var(--paper); border:1px solid var(--line); border-radius:14px; padding:16px 18px; margin:10px 0; }
+    .word { font-family:var(--serif); font-size:22px; font-weight:700; }
+    .meta { font-size:12px; color:var(--muted); margin:4px 0 8px; }
+    .def { font-size:14px; }
+    .audio-btn { padding:6px 12px; background:var(--sage); color:#fff; border:0; border-radius:8px; cursor:pointer; font-size:13px; margin-top:8px; margin-right:4px; }
+    .badge { display:inline-block; padding:2px 8px; background:var(--bg); border:1px solid var(--line); border-radius:999px; font-size:11px; margin-right:4px; }
+    .source { font-size:11px; color:var(--muted); font-style:italic; }
+    .grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(260px,1fr)); gap:12px; }
+    .form { display:grid; gap:8px; max-width:480px; }
+    .form input, .form select { padding:8px 12px; border:1px solid var(--line); border-radius:8px; font-size:14px; background:var(--paper); }
+    .form button { padding:10px 16px; background:var(--terra); color:#fff; border:0; border-radius:8px; cursor:pointer; font-weight:700; }
+    .status { padding:10px 14px; border-radius:8px; margin:8px 0; font-size:13px; }
+    .status.ok { background:#e6f0ea; color:#2d5a40; }
+    .status.err { background:#fdecea; color:#8a2c2c; }
+    ul { list-style:none; padding:0; }
+    li { padding:8px 0; border-bottom:1px solid var(--line); }
+    .counter { display:flex; gap:12px; flex-wrap:wrap; margin:12px 0; }
+    .counter .card { flex:1; min-width:120px; text-align:center; }
+    .counter .num { font-family:var(--serif); font-size:28px; font-weight:700; }
+    /* loading screen */
+    #loadingScreen { position:fixed; inset:0; background:var(--bg); z-index:1000; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:16px; }
+    #loadingScreen.hidden { display:none; }
+    .lang-grid { display:grid; grid-template-columns:repeat(2,1fr); gap:10px; max-width:360px; }
+    .lang-btn { padding:12px; border:2px solid var(--line); border-radius:12px; background:var(--paper); cursor:pointer; font-weight:700; font-size:15px; }
+    .lang-btn:hover { border-color:var(--terra); }
+    /* tutorial */
+    #tutorial { position:fixed; inset:0; background:rgba(35,26,43,.6); z-index:999; display:none; align-items:center; justify-content:center; }
+    #tutorial.show { display:flex; }
+    .tut-card { background:var(--paper); border-radius:16px; padding:28px; max-width:420px; text-align:center; }
+    .tut-card h3 { font-family:var(--serif); font-size:22px; margin:0 0 8px; }
+    /* map */
+    #map { height:420px; border-radius:14px; border:1px solid var(--line); margin:12px 0; }
+    .filters { display:flex; gap:6px; flex-wrap:wrap; margin:8px 0; }
+    .filters button { padding:6px 12px; border:1px solid var(--line); background:var(--paper); border-radius:999px; cursor:pointer; font-size:12px; }
+    .filters button.active { background:var(--terra); color:#fff; border-color:var(--terra); }
+    /* modal */
+    #modal { position:fixed; inset:0; background:rgba(35,26,43,.6); z-index:998; display:none; align-items:center; justify-content:center; padding:20px; }
+    #modal.show { display:flex; }
+    .modal-card { background:var(--paper); border-radius:16px; padding:20px; max-width:520px; width:100%; max-height:80vh; overflow-y:auto; }
+    .modal-card img { width:100%; border-radius:10px; margin-bottom:10px; }
+    .etym-card { background:var(--bg); border-left:3px solid var(--terra); padding:12px 14px; border-radius:8px; margin:8px 0; font-size:13px; }
+  </style>
+</head>
+<body>
+  <!-- Loading / Welcome screen -->
+  <div id="loadingScreen">
+    <p class="kicker" data-i18n="welcome_title">Dobrodošli</p>
+    <h1 data-i18n="welcome_title">Učenje HR/BS</h1>
+    <p class="lead" data-i18n="welcome_subtitle">Odaberi svoj maternji jezik za početak</p>
+    <div class="lang-grid">
+      <button class="lang-btn" data-lang="hr">🇭🇷 Hrvatski</button>
+      <button class="lang-btn" data-lang="en">🇬🇧 English</button>
+      <button class="lang-btn" data-lang="de">🇩🇪 Deutsch</button>
+      <button class="lang-btn" data-lang="es">🇪🇸 Español</button>
+    </div>
+  </div>
+
+  <!-- Tutorial -->
+  <div id="tutorial">
+    <div class="tut-card">
+      <h3 id="tutTitle"></h3>
+      <p id="tutText"></p>
+      <div style="display:flex;gap:8px;justify-content:center;margin-top:16px;">
+        <button class="audio-btn" id="tutSkip" style="background:var(--muted);" data-i18n="tutorial_skip">Preskoči</button>
+        <button class="audio-btn" id="tutNext" data-i18n="tutorial_next">Dalje</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal for locations -->
+  <div id="modal">
+    <div class="modal-card" id="modalContent"></div>
+  </div>
+
+  <header>
+    <div class="container topbar">
+      <div>
+        <p class="kicker" data-i18n="app_title">Učenje HR/BS</p>
+        <h1 data-i18n="app_title">Učenje HR/BS</h1>
+      </div>
+      <div style="display:flex;gap:8px;align-items:center;">
+        <select id="langSelect" class="lang-select"></select>
+        <button class="audio-btn" id="tutorialBtn" style="background:var(--muted);">? Tutorial</button>
+      </div>
+    </div>
+    <div class="container">
+      <div class="tabs">
+        <button class="active" data-tab="search" data-i18n="tab_search">Pretraga</button>
+        <button data-tab="lessons" data-i18n="tab_lessons">Lekcije</button>
+        <button data-tab="list" data-i18n="tab_list">Popis</button>
+        <button data-tab="map" data-i18n="tab_map">Karta</button>
+        <button data-tab="add" data-i18n="tab_add">Dodaj</button>
+        <button data-tab="cards" data-i18n="tab_cards">Kartice</button>
+        <button data-tab="dialect" data-i18n="tab_dialect">Kviz dijalekata</button>
+        <button data-tab="stats" data-i18n="tab_stats">Statistika</button>
+      </div>
+    </div>
+  </header>
+
+  <main class="container" style="padding:20px 20px 60px;">
+    <section id="tab-search">
+      <h2 data-i18n="search_heading">Traži riječ</h2>
+      <div class="search">
+        <input id="q" type="search" data-i18n-placeholder="search_placeholder" placeholder="npr. kuća, voda, ići…" />
+        <button id="searchBtn" data-i18n="search_btn">Traži</button>
+      </div>
+      <div id="searchResult"></div>
+    </section>
+
+    <section id="tab-lessons" style="display:none;">
+      <h2 data-i18n="lessons_heading">Lekcije</h2>
+      <div id="napredakBox"></div>
+      <div id="lessonsList"></div>
+      <div id="lessonRunner" style="display:none;"></div>
+    </section>
+
+    <section id="tab-list" style="display:none;">
+      <h2 data-i18n="list_heading">Sve riječi</h2>
+      <div class="search">
+        <input id="filter" type="search" placeholder="Filtriraj…" />
+        <select id="levelFilter">
+          <option value="">Svi nivoi</option>
+          <option value="A1">A1</option>
+          <option value="A2">A2</option>
+          <option value="B1">B1</option>
+        </select>
+        <select id="catFilter">
+          <option value="">Sve kategorije</option>
+          <option value="standard">Standard</option>
+          <option value="loanword">Posuđenica</option>
+          <option value="archaism">Zastarjelica</option>
+          <option value="proverb">Izreka</option>
+        </select>
+      </div>
+      <div id="listResult" class="grid"></div>
+    </section>
+
+    <section id="tab-map" style="display:none;">
+      <h2 data-i18n="map_heading">Karta dijalekata i povijesti</h2>
+      <div class="filters" id="mapFilters"></div>
+      <div id="map"></div>
+      <h3>Lokacije</h3>
+      <div id="locList" class="grid"></div>
+    </section>
+
+    <section id="tab-add" style="display:none;">
+      <h2 data-i18n="add_heading">Dodaj novu riječ</h2>
+      <form class="form" id="addForm">
+        <input name="word" data-i18n-placeholder="search_placeholder" placeholder="Riječ *" required />
+        <input name="translation" placeholder="Prijevod / značenje (JSON ili tekst) *" required />
+        <input name="pos" placeholder="Vrsta (noun, verb, adj…)" />
+        <select name="level"><option>A1</option><option>A2</option><option>B1</option></select>
+        <select name="lexicon_category">
+          <option value="standard">Standard</option>
+          <option value="loanword">Posuđenica</option>
+          <option value="archaism">Zastarjelica</option>
+          <option value="proverb">Izreka</option>
+        </select>
+        <input name="origin_language" placeholder="Jezik porijekla (npr. turski)" />
+        <input name="modern_equivalent" placeholder="Današnji ekvivalent" />
+        <input name="primary_regions" placeholder="Regije (zarezom odvojeno)" />
+        <input name="lat" placeholder="Lat (npr. 43.85)" type="number" step="any" />
+        <input name="lng" placeholder="Lng (npr. 18.41)" type="number" step="any" />
+        <textarea name="etymology_story" rows="3" placeholder="Etimološka priča…"></textarea>
+        <button type="submit" data-i18n="search_btn">Spremi</button>
+      </form>
+      <div id="addStatus"></div>
+    </section>
+
+    <section id="tab-cards" style="display:none;">
+      <h2 data-i18n="tab_cards">Kartice (SRS)</h2>
+      <div id="cardsBox"></div>
+    </section>
+
+    <section id="tab-dialect" style="display:none;">
+      <h2 data-i18n="tab_dialect">Kviz dijalekata</h2>
+      <div id="dialectBox"></div>
+    </section>
+
+    <section id="tab-stats" style="display:none;">
+      <h2 data-i18n="stats_heading">Statistika</h2>
+      <div id="counterBox" class="counter"></div>
+      <div id="xpBox" class="card" style="margin:12px 0;"></div>
+      <div id="statsResult"></div>
+    </section>
+  </main>
+
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script>
+    const API = (location.protocol === "file:" || location.hostname === "") 
+      ? "http://localhost:3001/api" 
+      : "/api";
+    const $ = (s) => document.querySelector(s);
+    const $$ = (s) => document.querySelectorAll(s);
+
+    // ===== i18n =====
+    const LANGS = ["hr", "en", "de", "es"];
+    let i18n = {};
+    let currentLang = localStorage.getItem("hrbs:lang") || null;
+
+    async function loadI18n(lang) {
+      try {
+        const res = await fetch(`/i18n/${lang}.json`);
+        i18n = await res.json();
+        document.documentElement.lang = lang;
+        applyI18n();
+      } catch { /* fallback hr */ }
+    }
+    function t(key) { return i18n[key] || key; }
+    function applyI18n() {
+      $$("[data-i18n]").forEach((el) => { el.textContent = t(el.dataset.i18n); });
+      $$("[data-i18n-placeholder]").forEach((el) => { el.placeholder = t(el.dataset.i18nPlaceholder); });
+    }
+
+    // ===== Audio =====
+    function speak(text, lang) {
+      if (!("speechSynthesis" in window)) { alert("Audio nije podržan."); return; }
+      const u = new SpeechSynthesisUtterance(text);
+      u.lang = lang || (currentLang === "hr" ? "hr-HR" : "hr-HR");
+      u.rate = 0.9;
+      const voices = window.speechSynthesis.getVoices();
+      const v = voices.find((x) => x.lang === u.lang) || voices.find((x) => x.lang.startsWith("hr")) || voices.find((x) => x.lang.startsWith("bs"));
+      if (v) u.voice = v;
+      window.speechSynthesis.cancel();
+      window.speechSynthesis.speak(u);
+    }
+
+    function escapeHtml(s) { return String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c])); }
+    function tryParse(s) { try { return typeof s === "string" ? JSON.parse(s) : s; } catch { return s; } }
+
+    // ===== Loading screen & language selection =====
+    const loadingScreen = $("#loadingScreen");
+    document.querySelectorAll(".lang-btn").forEach((btn) => {
+      btn.onclick = async () => {
+        currentLang = btn.dataset.lang;
+        localStorage.setItem("hrbs:lang", currentLang);
+        loadingScreen.classList.add("hidden");
+        await loadI18n(currentLang);
+        if (!localStorage.getItem("hrbs:tutorialDone")) showTutorial(0);
+      };
+    });
+
+    // ===== Tutorial =====
+    const tutSteps = [
+      { titleKey: "tut1_title", textKey: "tut1_text" },
+      { titleKey: "tut2_title", textKey: "tut2_text" },
+      { titleKey: "tut3_title", textKey: "tut3_text" },
+    ];
+    let tutStep = 0;
+    function showTutorial(step) {
+      tutStep = step;
+      $("#tutorial").classList.add("show");
+      $("#tutTitle").textContent = t(tutSteps[step].titleKey);
+      $("#tutText").textContent = t(tutSteps[step].textKey);
+      $("#tutNext").textContent = step === tutSteps.length - 1 ? t("tutorial_done") : t("tutorial_next");
+    }
+    $("#tutSkip").onclick = () => { $("#tutorial").classList.remove("show"); localStorage.setItem("hrbs:tutorialDone", "1"); };
+    $("#tutNext").onclick = () => {
+      if (tutStep >= tutSteps.length - 1) { $("#tutorial").classList.remove("show"); localStorage.setItem("hrbs:tutorialDone", "1"); }
+      else showTutorial(tutStep + 1);
+    };
+    $("#tutorialBtn").onclick = () => showTutorial(0);
+
+    // ===== SRS (Spaced Repetition) =====
+    const SRS_KEY = "hrbs:srs";
+    function srsLoad() { try { return JSON.parse(localStorage.getItem(SRS_KEY) || "{}"); } catch { return {}; } }
+    function srsSave(s) { try { localStorage.setItem(SRS_KEY, JSON.stringify(s)); } catch {} }
+    function srsUpdate(card, correct) {
+      const now = Date.now(); const day = 86400000;
+      if (!correct) return { interval: 1, ease: Math.max(1.3, (card?.ease || 2.5) - 0.2), due: now + day, reps: 0 };
+      const ease = (card?.ease || 2.5) + 0.1;
+      const interval = Math.max(1, Math.round((card?.interval || 1) * ease));
+      return { interval, ease, due: now + interval * day, reps: (card?.reps || 0) + 1 };
+    }
+    async function loadCards() {
+      const box = $("#cardsBox");
+      const srs = srsLoad();
+      const now = Date.now();
+      const res = await fetch(`${API}/words?limit=500`);
+      const data = await res.json();
+      const due = (data.words || []).filter((w) => !srs[w.id] || srs[w.id].due <= now);
+      const w = due[0];
+      if (!w) { const learned = Object.values(srs).filter((c) => c.reps > 0).length; box.innerHTML = `<div class="card"><div class="word">Sve za danas je gotovo!</div><div class="def">${learned} riječi naučeno.</div></div>`; return; }
+      const trans = tryParse(w.translation) || {};
+      const lang = currentLang || "hr";
+      box.innerHTML = `<div class="card" style="text-align:center;"><div class="word">${escapeHtml(w.word)}</div><div class="meta">${escapeHtml(w.pos||"")} · ${escapeHtml(w.level||"A1")}</div><button class="audio-btn" onclick="speak('${escapeHtml(w.word)}','hr-HR')">🔊 Poslušaj</button><div id="cardAns" style="margin-top:12px;"></div><div style="display:flex;gap:8px;justify-content:center;margin-top:12px;"><button class="audio-btn" id="cardShow" style="background:var(--terra);">Prikaži</button></div></div>`;
+      $("#cardShow").onclick = () => {
+        $("#cardAns").innerHTML = `<div class="def" style="font-size:16px;margin:8px 0;">${escapeHtml(trans[lang] || trans.hr || w.translation)}</div>`;
+        const btns = document.createElement("div"); btns.style.cssText = "display:flex;gap:8px;justify-content:center;margin-top:12px;";
+        btns.innerHTML = `<button class="audio-btn" id="cardNo" style="background:#8a2c2c;">Ne znam</button><button class="audio-btn" id="cardYes" style="background:var(--sage);">Znam</button>`;
+        $("#cardAns").appendChild(btns);
+        btns.querySelector("#cardNo").onclick = () => { const s = srsLoad(); s[w.id] = srsUpdate(s[w.id], false); srsSave(s); addXP(5); loadCards(); };
+        btns.querySelector("#cardYes").onclick = () => { const s = srsLoad(); s[w.id] = srsUpdate(s[w.id], true); srsSave(s); addXP(10); loadCards(); };
+      };
+    }
+
+    // ===== XP & Badges =====
+    const XP_KEY = "hrbs:xp";
+    function getXP() { try { return parseInt(localStorage.getItem(XP_KEY) || "0", 10); } catch { return 0; } }
+    function addXP(n) {
+      const x = getXP() + n;
+      localStorage.setItem(XP_KEY, String(x));
+      const badges = JSON.parse(localStorage.getItem("hrbs:badges") || "[]");
+      if (x >= 100 && !badges.includes("ucenik")) badges.push("ucenik");
+      if (x >= 500 && !badges.includes("etimolog")) badges.push("etimolog");
+      if (x >= 1000 && !badges.includes("putnik")) badges.push("putnik");
+      localStorage.setItem("hrbs:badges", JSON.stringify(badges));
+      renderXP();
+    }
+    function renderXP() {
+      const x = getXP();
+      const badges = JSON.parse(localStorage.getItem("hrbs:badges") || "[]");
+      const el = $("#xpBox");
+      if (el) el.innerHTML = `<div style="display:flex;gap:16px;align-items:center;flex-wrap:wrap;"><div><div class="word" style="font-size:22px;">⭐ ${x}</div><div class="meta">XP bodovi</div></div><div><div class="word" style="font-size:22px;">${badges.length}</div><div class="meta">Bedževi: ${badges.join(", ") || "—"}</div></div></div>`;
+    }
+
+    // ===== Dialect quiz =====
+    async function loadDialectQuiz() {
+      const box = $("#dialectBox");
+      const res = await fetch(`${API}/words?limit=500`);
+      const data = await res.json();
+      const words = (data.words || []).filter((w) => w.origin_language && w.lat && w.lng);
+      if (words.length < 4) { box.innerHTML = `<p>${t("no_words")}</p>`; return; }
+      const q = words[Math.floor(Math.random() * words.length)];
+      const origins = [...new Set(words.map((w) => w.origin_language))];
+      box.innerHTML = `
+        <div class="card">
+          <div class="word">${escapeHtml(q.word)}</div>
+          <div class="def" style="margin:8px 0;">Odakle potječe riječ?</div>
+          <div style="display:grid;gap:8px;margin-top:12px;">
+            ${origins.slice(0,4).map((o) => `<button class="audio-btn" style="background:var(--paper);color:var(--ink);border:1px solid var(--line);text-align:left;" data-origin="${escapeHtml(o)}">${escapeHtml(o)}</button>`).join("")}
+          </div>
+          <div id="dialectFb" style="margin-top:12px;font-weight:700;"></div>
+        </div>`;
+      box.querySelectorAll("[data-origin]").forEach((btn) => {
+        btn.onclick = () => {
+          const ok = btn.dataset.origin === q.origin_language;
+          if (ok) { btn.style.background = "#e6f0ea"; addXP(15); } else { btn.style.background = "#fdecea"; }
+          box.querySelector("#dialectFb").textContent = ok ? "Točno!" : `Netočno. Točan odgovor: ${q.origin_language}`;
+          box.querySelectorAll("[data-origin]").forEach((b) => (b.disabled = true));
+          setTimeout(loadDialectQuiz, 1500);
+        };
+      });
+    }
+
+    // ===== Tabs =====
+    document.querySelectorAll(".tabs button").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        document.querySelectorAll(".tabs button").forEach((b) => b.classList.remove("active"));
+        btn.classList.add("active");
+        document.querySelectorAll("main section").forEach((s) => (s.style.display = "none"));
+        document.getElementById("tab-" + btn.dataset.tab).style.display = "";
+        if (btn.dataset.tab === "list") loadList();
+        if (btn.dataset.tab === "stats") { loadStats(); renderXP(); }
+        if (btn.dataset.tab === "map") loadMap();
+        if (btn.dataset.tab === "lessons") loadLessons();
+        if (btn.dataset.tab === "cards") loadCards();
+        if (btn.dataset.tab === "dialect") loadDialectQuiz();
+      });
+    });
+
+    // ===== Search =====
+    async function searchWord() {
+      const word = $("#q").value.trim();
+      if (!word) return;
+      const box = $("#searchResult");
+      box.innerHTML = `<p>${t("loading")}</p>`;
+      try {
+        const res = await fetch(`${API}/words/${encodeURIComponent(word)}`);
+        if (!res.ok) {
+          const err = await res.json().catch(() => ({}));
+          box.innerHTML = `<div class="status err">${escapeHtml(err.error || t("no_words"))}</div>`;
+          return;
+        }
+        const data = await res.json();
+        const w = data.word;
+        const trans = tryParse(w.translation) || {};
+        const story = tryParse(w.etymology_story) || {};
+        const regions = tryParse(w.primary_regions) || [];
+        const lang = currentLang || "hr";
+        box.innerHTML = `
+          <div class="card">
+            <div class="word">${escapeHtml(w.word)}</div>
+            <div class="meta">
+              <span class="badge">${escapeHtml(w.pos || "—")}</span>
+              <span class="badge">${escapeHtml(w.level || "A1")}</span>
+              <span class="badge">${escapeHtml(w.lexicon_category || "standard")}</span>
+              ${w.origin_language ? `<span class="badge">${escapeHtml(w.origin_language)}</span>` : ""}
+            </div>
+            <div class="def">${escapeHtml(trans[lang] || trans.hr || w.translation)}</div>
+            ${w.modern_equivalent ? `<div class="meta">${t("modern_equiv")}: ${escapeHtml(w.modern_equivalent)}</div>` : ""}
+            <button class="audio-btn" onclick="speak('${escapeHtml(w.word)}','hr-HR')">🔊 ${t("listen")} (HR)</button>
+            <button class="audio-btn" onclick="speak('${escapeHtml(w.word)}','bs-BA')" style="background:#7a5a8a;">🔊 ${t("listen")} (BS)</button>
+            ${story[lang] || story.hr ? `<div class="etym-card"><strong>${t("etymology_title")}</strong><br/>${escapeHtml(story[lang] || story.hr)}</div>` : ""}
+            ${regions.length ? `<div class="meta">${t("regions")}: ${regions.join(", ")}</div>` : ""}
+            <div class="source">izvor: ${escapeHtml(w.source || "db")} · ${data.source}</div>
+          </div>`;
+      } catch (e) {
+        box.innerHTML = `<div class="status err">${escapeHtml(e.message)}</div>`;
+      }
+    }
+    $("#searchBtn").onclick = searchWord;
+    $("#q").addEventListener("keydown", (e) => { if (e.key === "Enter") searchWord(); });
+
+    // ===== List =====
+    async function loadList() {
+      const filter = $("#filter").value.trim();
+      const level = $("#levelFilter").value;
+      const cat = $("#catFilter").value;
+      const params = new URLSearchParams();
+      if (filter) params.set("q", filter);
+      if (level) params.set("level", level);
+      params.set("limit", "300");
+      const res = await fetch(`${API}/words?${params}`);
+      const data = await res.json();
+      let words = data.words || [];
+      if (cat) words = words.filter((w) => w.lexicon_category === cat);
+      $("#listResult").innerHTML = words.map((w) => {
+        const trans = tryParse(w.translation) || {};
+        const lang = currentLang || "hr";
+        return `
+        <div class="card">
+          <div class="word" style="font-size:18px;">${escapeHtml(w.word)}</div>
+          <div class="meta">
+            <span class="badge">${escapeHtml(w.pos || "—")}</span>
+            <span class="badge">${escapeHtml(w.level || "A1")}</span>
+            <span class="badge">${escapeHtml(w.lexicon_category || "standard")}</span>
+          </div>
+          <div class="def">${escapeHtml(trans[lang] || trans.hr || w.translation)}</div>
+          <button class="audio-btn" onclick="speak('${escapeHtml(w.word)}','hr-HR')">🔊</button>
+        </div>`;
+      }).join("") || `<p>${t("no_words")}</p>`;
+    }
+    $("#filter").addEventListener("input", loadList);
+    $("#levelFilter").addEventListener("change", loadList);
+    $("#catFilter").addEventListener("change", loadList);
+
+    // ===== Live counter =====
+    async function loadStats() {
+      const res = await fetch(`${API}/stats`);
+      const d = await res.json();
+      $("#counterBox").innerHTML = `
+        <div class="card"><div class="num">${d.total}</div><div class="meta">${t("total_words")}</div></div>
+        <div class="card"><div class="num">${d.withDefinition}</div><div class="meta">${t("with_definition")}</div></div>
+        <div class="card"><div class="num">${d.withoutDefinition}</div><div class="meta">${t("without_definition")}</div></div>`;
+      $("#statsResult").innerHTML = `
+        <div class="card">
+          <h3>Po nivou</h3><ul>${(d.byLevel||[]).map((x)=>`<li>${x.level}: ${x.c}</li>`).join("")}</ul>
+          <h3>Po kategoriji</h3><ul>${(d.byCategory||[]).map((x)=>`<li>${x.lexicon_category}: ${x.c}</li>`).join("")}</ul>
+          <h3>Po izvoru</h3><ul>${(d.bySource||[]).map((x)=>`<li>${x.source}: ${x.c}</li>`).join("")}</ul>
+        </div>`;
+    }
+
+    // ===== Map (Leaflet) =====
+    let map = null;
+    async function loadMap() {
+      if (!map) {
+        map = L.map("map").setView([44.5, 17.5], 6);
+        L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+          attribution: "© OpenStreetMap"
+        }).addTo(map);
+      }
+      const cat = $("#mapCatFilter")?.value || "";
+      const origin = $("#mapOriginFilter")?.value || "";
+      const res = await fetch(`${API}/locations`);
+      const data = await res.json();
+      // clear markers
+      map.eachLayer((l) => { if (l instanceof L.Marker) map.removeLayer(l); });
+      (data.locations || []).forEach((loc) => {
+        const m = L.marker([loc.lat, loc.lng]).addTo(map);
+        const desc = tryParse(loc.description) || {};
+        const lang = currentLang || "hr";
+        m.bindPopup(`
+          <strong>${escapeHtml(loc.name)}</strong><br/>
+          <em>${escapeHtml(loc.country)} · ${escapeHtml(loc.category)}</em><br/>
+          ${escapeHtml(desc[lang] || desc.hr || "")}<br/>
+          ${loc.local_words ? `<small>${escapeHtml((tryParse(loc.local_words)||[]).join(", "))}</small>` : ""}
+          ${loc.image_url ? `<br/><img src="${escapeHtml(loc.image_url)}" style="max-width:200px;margin-top:6px;border-radius:8px;"/>` : ""}
+        `);
+      });
+
+      // word markers
+      const wres = await fetch(`${API}/words?limit=500`);
+      const wdata = await wres.json();
+      (wdata.words || []).forEach((w) => {
+        if (!w.lat || !w.lng) return;
+        if (cat && w.lexicon_category !== cat) return;
+        if (origin && w.origin_language !== origin) return;
+        const color = w.lexicon_category === "loanword" ? "#c0573b" : w.lexicon_category === "archaism" ? "#6f6270" : w.lexicon_category === "proverb" ? "#d9a155" : "#4f7a6e";
+        const icon = L.divIcon({ className: "", html: `<div style="background:${color};width:12px;height:12px;border-radius:50%;border:2px solid #fff;box-shadow:0 2px 4px rgba(0,0,0,.3);"></div>`, iconSize: [12,12] });
+        const m = L.marker([w.lat, w.lng], { icon }).addTo(map);
+        const trans = tryParse(w.translation) || {};
+        const lang = currentLang || "hr";
+        m.bindPopup(`
+          <strong>${escapeHtml(w.word)}</strong><br/>
+          <em>${escapeHtml(w.lexicon_category)} · ${escapeHtml(w.origin_language || "")}</em><br/>
+          ${escapeHtml(trans[lang] || trans.hr || w.translation)}<br/>
+          ${w.modern_equivalent ? `<small>≈ ${escapeHtml(w.modern_equivalent)}</small>` : ""}
+        `);
+      });
+    }
+
+    // map filters UI
+    const mf = $("#mapFilters");
+    if (mf && !mf.children.length) {
+      const cats = ["", "standard", "loanword", "archaism", "proverb"];
+      const catLabels = { "": "Sve", standard: "Standard", loanword: "Posuđenice", archaism: "Zastarjelice", proverb: "Izreke" };
+      const catSel = document.createElement("select");
+      catSel.id = "mapCatFilter";
+      cats.forEach((c) => { const o = document.createElement("option"); o.value = c; o.textContent = catLabels[c]; catSel.appendChild(o); });
+      catSel.onchange = loadMap;
+      mf.appendChild(catSel);
+      const origins = ["", "turski", "talijanski", "njemački", "mađarski", "slavenski", "latinski"];
+      const oSel = document.createElement("select");
+      oSel.id = "mapOriginFilter";
+      origins.forEach((o) => { const opt = document.createElement("option"); opt.value = o; opt.textContent = o || "Svi porijekli"; oSel.appendChild(opt); });
+      oSel.onchange = loadMap;
+      mf.appendChild(oSel);
+    }
+
+    // ===== Lessons (copied from before) =====
+    async function loadLessons() { /* placeholder - load from API */ 
+      const box = $("#lessonsList");
+      box.innerHTML = `<p>${t("loading")}</p>`;
+      try {
+        const res = await fetch(`${API}/lessons`);
+        const data = await res.json();
+        box.innerHTML = (data.lessons||[]).map((l) => `
+          <div class="card" style="cursor:pointer;" data-lesson="${l.id}">
+            <div class="word" style="font-size:18px;">${escapeHtml(l.title)}</div>
+            <div class="meta"><span class="badge">${escapeHtml(l.level)}</span> ${l.count} riječi</div>
+            <div class="def">${escapeHtml(l.description)}</div>
+          </div>`).join("");
+        box.querySelectorAll("[data-lesson]").forEach((el) => { el.onclick = () => startLesson(parseInt(el.dataset.lesson,10)); });
+      } catch (e) { box.innerHTML = `<div class="status err">${escapeHtml(e.message)}</div>`; }
+    }
+    let currentLesson=null, lessonWords=[], lessonIndex=0, lessonScore=0;
+    async function startLesson(id) {
+      const res = await fetch(`${API}/lessons/${id}`);
+      const data = await res.json();
+      currentLesson = data.lesson; lessonWords = data.words; lessonIndex=0; lessonScore=0;
+      $("#lessonsList").style.display="none"; $("#lessonRunner").style.display="";
+      renderExercise();
+    }
+    function shuffleArr(a){const c=[...a];for(let i=c.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[c[i],c[j]]=[c[j],c[i]];}return c;}
+    function renderExercise() {
+      const runner = $("#lessonRunner");
+      if (lessonIndex >= lessonWords.length) {
+        const pct = Math.round((lessonScore/lessonWords.length)*100);
+        runner.innerHTML = `<div class="card"><div class="word">Rezultat: ${lessonScore}/${lessonWords.length}</div><div class="def">${pct===100?"Odlično!":pct>=60?"Dobro.":"Vježbaj još."}</div><button class="audio-btn" id="backL" style="background:var(--terra);">Natrag</button></div>`;
+        runner.querySelector("#backL").onclick = () => { runner.style.display="none"; $("#lessonsList").style.display=""; };
+        return;
+      }
+      const w = lessonWords[lessonIndex];
+      const opts = shuffleArr([w, ...shuffleArr(lessonWords.filter(x=>x.id!==w.id)).slice(0,3)]);
+      const type = lessonIndex % 3;
+      let prompt, answerKey="translation";
+      if (type===0){ prompt=`Kako se engleski kaže: <strong>${escapeHtml(w.word)}</strong>?`; }
+      else if (type===1){ prompt=`Kako se hrvatski kaže: <strong>${escapeHtml(w.translation)}</strong>?`; answerKey="word"; }
+      else { prompt=`Poslušaj i odaberi:`; answerKey="word"; setTimeout(()=>speak(w.word,"hr-HR"),300); }
+      runner.innerHTML = `<div class="card"><div class="meta">Pitanje ${lessonIndex+1}/${lessonWords.length}</div><div class="def" style="font-size:18px;margin:12px 0;">${prompt}</div>${type===2?'<button class="audio-btn" id="playQ">🔊</button>':""}<div style="display:grid;gap:8px;margin-top:12px;">${opts.map(o=>`<button class="audio-btn" style="background:var(--paper);color:var(--ink);border:1px solid var(--line);text-align:left;" data-val="${escapeHtml(answerKey==="word"?o.word:o.translation)}">${escapeHtml(answerKey==="word"?o.word:o.translation)}</button>`).join("")}</div><div id="fb" style="margin-top:12px;font-weight:700;"></div></div>`;
+      if (type===2) runner.querySelector("#playQ").onclick = () => speak(w.word,"hr-HR");
+      const correct = answerKey==="word" ? w.word : w.translation;
+      runner.querySelectorAll("[data-val]").forEach((btn) => {
+        btn.onclick = () => {
+          const ok = btn.dataset.val === correct;
+          if (ok) { lessonScore++; btn.style.background="#e6f0ea"; } else { btn.style.background="#fdecea"; }
+          runner.querySelector("#fb").textContent = ok ? "✓ Točno!" : `✗ Točno: ${correct}`;
+          runner.querySelectorAll("[data-val]").forEach((b)=>b.disabled=true);
+          setTimeout(()=>{ lessonIndex++; renderExercise(); }, 1100);
+        };
+      });
+    }
+
+    // ===== Add word =====
+    document.getElementById("addForm").addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const fd = new FormData(e.target);
+      const body = {
+        word: fd.get("word"), translation: fd.get("translation"), pos: fd.get("pos"),
+        level: fd.get("level"), lexicon_category: fd.get("lexicon_category"),
+        origin_language: fd.get("origin_language"), modern_equivalent: fd.get("modern_equivalent"),
+        primary_regions: fd.get("primary_regions") ? fd.get("primary_regions").split(",").map(s=>s.trim()).filter(Boolean) : [],
+        lat: fd.get("lat") ? parseFloat(fd.get("lat")) : null,
+        lng: fd.get("lng") ? parseFloat(fd.get("lng")) : null,
+        etymology_story: fd.get("etymology_story") ? { hr: fd.get("etymology_story") } : null,
+      };
+      const status = $("#addStatus");
+      try {
+        const res = await fetch(`${API}/words`, { method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify(body) });
+        const data = await res.json();
+        if (!res.ok) { status.className="status err"; status.textContent=data.error||"Greška."; return; }
+        status.className="status ok"; status.textContent=`Spremljeno: ${data.word.word}`;
+        e.target.reset(); loadList(); loadStats();
+      } catch (err) { status.className="status err"; status.textContent=err.message; }
+    });
+
+    // ===== Init =====
+    (async () => {
+      if (!currentLang) {
+        loadingScreen.classList.remove("hidden");
+      } else {
+        await loadI18n(currentLang);
+        loadingScreen.classList.add("hidden");
+        if (!localStorage.getItem("hrbs:tutorialDone")) showTutorial(0);
+      }
+      // preload voices
+      if (window.speechSynthesis) window.speechSynthesis.onvoiceschanged = () => window.speechSynthesis.getVoices();
+      // lang select
+      const sel = $("#langSelect");
+      LANGS.forEach((l) => { const o = document.createElement("option"); o.value = l; o.textContent = l.toUpperCase(); sel.appendChild(o); });
+      sel.value = currentLang || "hr";
+      sel.onchange = async () => { currentLang = sel.value; localStorage.setItem("hrbs:lang", currentLang); await loadI18n(currentLang); };
+      if (currentLang) await loadI18n(currentLang);
+    })();
+  </script>
+</body>
+</html>
