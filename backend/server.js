@@ -142,14 +142,30 @@ function tryParse(s) { try { return s ? JSON.parse(s) : null; } catch { return s
 
 // posluži frontend (jedan link za sve)
 const frontendPath = path.join(__dirname, "..", "frontend");
+// health check (prije catch-all)
+app.get("/api/health", (req, res) => res.json({ ok: true, service: "hr-bs-learn" }));
+
 app.use(express.static(frontendPath));
 app.use((req, res) => {
   if (req.path.startsWith("/api")) return res.status(404).json({ error: "not found" });
   res.sendFile(path.join(frontendPath, "index.html"));
 });
 
-// health check
-app.get("/api/health", (req, res) => res.json({ ok: true, service: "hr-bs-learn" }));
+const PORT = process.env.PORT || 3001;
+if (process.env.AUTO_SEED === "true") {
+  try {
+    const count = db.prepare("SELECT COUNT(*) AS c FROM words").get().c;
+    if (count === 0) {
+      console.log("Auto-seeding database...");
+      const { execSync } = require("child_process");
+      execSync("node seed.js", { stdio: "inherit" });
+      execSync("node seed-lessons.js", { stdio: "inherit" });
+      execSync("node seed-words.js", { stdio: "inherit" });
+    }
+  } catch (e) {
+    console.error("Auto-seed error:", e.message);
+  }
+}
 app.listen(PORT, () => {
   console.log(`hr-bs-learn backend running on http://localhost:${PORT}`);
 });
