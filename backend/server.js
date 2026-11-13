@@ -145,6 +145,26 @@ const frontendPath = path.join(__dirname, "..", "frontend");
 // health check (prije catch-all)
 app.get("/api/health", (req, res) => res.json({ ok: true, service: "hr-bs-learn" }));
 
+// SEO: uvijek svjež robots.txt (Google ga inače može držati u kešu do 24 h)
+app.get("/robots.txt", (req, res) => {
+  res.type("text/plain");
+  res.set("Cache-Control", "no-store, max-age=0");
+  res.send(
+    "User-agent: *\n" +
+      "Allow: /\n" +
+      "Disallow: /api/\n\n" +
+      "User-agent: Googlebot\n" +
+      "Allow: /\n" +
+      "Disallow: /api/\n\n" +
+      "Sitemap: https://hr-bs-learn.onrender.com/sitemap.xml\n"
+  );
+});
+app.get("/sitemap.xml", (req, res) => {
+  res.type("application/xml");
+  res.set("Cache-Control", "public, max-age=0, must-revalidate");
+  res.sendFile(path.join(frontendPath, "sitemap.xml"));
+});
+
 app.use(express.static(frontendPath));
 app.use((req, res) => {
   if (req.path.startsWith("/api")) return res.status(404).json({ error: "not found" });
