@@ -150,7 +150,8 @@ app.get("/robots.txt", (req, res) => {
   res.type("text/plain");
   res.set("Cache-Control", "no-store, max-age=0");
   res.send(
-    "User-agent: *\n" +
+    "# HR/BS robots.txt v2 — 2026-11-13\n" +
+      "User-agent: *\n" +
       "Allow: /\n" +
       "Disallow: /api/\n\n" +
       "User-agent: Googlebot\n" +
